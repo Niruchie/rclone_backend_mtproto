@@ -3,7 +3,6 @@ package configuration
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/rand"
 	"sync"
 
@@ -162,6 +161,12 @@ func (s *MTProtoService) UpdateConfig() error {
 // ---------------------------------------------------------------------------
 
 func (s *MTProtoService) handleUpdates() {
+	defer func() {
+		if r := recover(); r != nil {
+			fs.Errorf(logging.LoggerString(s), "panic in update listener: %v", r)
+		}
+	}()
+
 	client, err := s.Client()
 	if err != nil {
 		fs.Errorf(logging.LoggerString(s), "update listener: %v", err)
@@ -221,7 +226,10 @@ func (s *MTProtoService) CreateChannel(_ context.Context, title string) (mtproto
 }
 
 // GetTopics fetches forum topics matching the given title.
-func (s *MTProtoService) GetTopics(_ context.Context, search mtproto.ForumTopicObj) ([]mtproto.ForumTopicObj, error) {
+//
+// Iterates paginated requests to handle an arbitrary number of topics.
+// Context cancellation is honoured on every iteration.
+func (s *MTProtoService) GetTopics(ctx context.Context, search mtproto.ForumTopicObj) ([]mtproto.ForumTopicObj, error) {
 	client, err := s.Client()
 	if err != nil {
 		return nil, err
@@ -232,27 +240,89 @@ func (s *MTProtoService) GetTopics(_ context.Context, search mtproto.ForumTopicO
 		return nil, err
 	}
 
-	peer, err := client.GetPeerChannel(ch.ID)
-	if err != nil {
-		return nil, err
-	}
+	const pageSize = 100
 
-	forum, err := client.MessagesGetForumTopics(&mtproto.MessagesGetForumTopicsParams{
-		Q:     search.Title,
-		Limit: math.MaxInt32,
-		Peer:  peer,
-	})
-	if err != nil {
-		return nil, err
-	}
+	var (
+		topics      []mtproto.ForumTopicObj
+		offsetID    int32
+		offsetDate  int32
+		offsetTopic int32
+	)
 
-	topics := make([]mtproto.ForumTopicObj, 0, len(forum.Topics))
-	for i := range forum.Topics {
-		if t, ok := forum.Topics[i].(*mtproto.ForumTopicObj); ok {
-			topics = append(topics, *t)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		forumTopics, err := client.ListTopics(ch.ID, &mtproto.ListTopicsOptions{
+			Query:       search.Title,
+			Limit:       pageSize,
+			OffsetID:    offsetID,
+			OffsetDate:  offsetDate,
+			OffsetTopic: offsetTopic,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, ft := range forumTopics {
+			if t, ok := ft.(*mtproto.ForumTopicObj); ok {
+				topics = append(topics, *t)
+			}
+		}
+
+		// If the page is smaller than the limit, there are no more results.
+		if len(forumTopics) < pageSize {
+			break
+		}
+
+		// Prepare offsets for the next page using the last topic.
+		if last, ok := forumTopics[len(forumTopics)-1].(*mtproto.ForumTopicObj); ok {
+			offsetID = last.ID
+			offsetDate = last.Date
+			offsetTopic = last.ID
+		} else {
+			break // defensive: unexpected type, stop paginating
 		}
 	}
+
 	return topics, nil
+}
+
+// UpdateTopic edits the title of an existing forum topic.
+func (s *MTProtoService) UpdateTopic(ctx context.Context, topic mtproto.ForumTopicObj) (mtproto.ForumTopicObj, bool, error) {
+	client, err := s.Client()
+	if err != nil {
+		return topic, false, err
+	}
+
+	ch, err := client.GetChannel(s.SupergroupId)
+	if err != nil {
+		return topic, false, err
+	}
+
+	if err := client.RenameTopic(ch.ID, topic.ID, topic.Title); err != nil {
+		return topic, false, err
+	}
+
+	return topic, true, nil
+}
+
+// DeleteTopic deletes a forum topic.
+func (s *MTProtoService) DeleteTopic(ctx context.Context, topic mtproto.ForumTopicObj) error {
+	client, err := s.Client()
+	if err != nil {
+		return err
+	}
+
+	ch, err := client.GetChannel(s.SupergroupId)
+	if err != nil {
+		return err
+	}
+
+	return client.DeleteTopic(ch.ID, topic.ID)
 }
 
 // CreateTopic creates a forum topic, returning the existing one if it exists.
