@@ -1,6 +1,6 @@
-module github.com/rclone/rclone_out_of_tree_example
+module github.com/Niruchie/rclone_backend_mtproto
 
-go 1.23.4
+go 1.25.0
 
 require (
 	bazil.org/fuse v0.0.0-20230120002735-62a210ff1fd5 // indirect
@@ -27,6 +27,7 @@ require (
 	github.com/a8m/tree v0.0.0-20240104212747-2c8764a5f17e // indirect
 	github.com/aalpar/deheap v0.0.0-20210914013432-0cc84d79dec3 // indirect
 	github.com/abbot/go-http-auth v0.4.0 // indirect
+	github.com/amarnathcjd/gogram v1.7.6 // indirect
 	github.com/anacrolix/dms v1.7.1 // indirect
 	github.com/anacrolix/generics v0.0.1 // indirect
 	github.com/anacrolix/log v0.16.0 // indirect

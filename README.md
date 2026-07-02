@@ -1,27 +1,34 @@
 
+# Rclone MTProto Backend
 
-[<img src="https://rclone.org/img/logo_on_light__horizontal_color.svg" width="50%" alt="rclone logo">](https://rclone.org/#gh-light-mode-only)
-[<img src="https://rclone.org/img/logo_on_dark__horizontal_color.svg" width="50%" alt="rclone logo">](https://rclone.org/#gh-dark-mode-only)
+This is an out-of-tree backend for rclone that provides access  via the **MTProto** protocol. It uses the [gogram](https://github.com/amarnathcjd/gogram) library to communicate with MTProto's API, allowing you to use MTProto forums (supergroups with topics) as a remote file system (S3-compatible).
 
-[Website](https://rclone.org) |
-[Documentation](https://rclone.org/docs/) |
-[Download](https://rclone.org/downloads/) |
-[Contributing](CONTRIBUTING.md) |
-[Changelog](https://rclone.org/changelog/) |
-[Installation](https://rclone.org/install/) |
-[Forum](https://forum.rclone.org/)
+## Features
 
-# Rclone Out of Tree Example
+- Configurable via rclone's standard configuration system
+- List, read, and write files in MTProto supergroup forums
+- Change notification polling for forum topic updates
+- Server-side directory (topic) moves
 
-This is an example of how to have an out of tree backend. You might want to do this before your backend is merged into rclone, or if it isn't suitable for merging (eg uses CGO) or for some other reason.
+## Building
 
-If you `git clone` this repository and build with `go build` it will make an executable which is rclone plus an additional backend called `ram`. This is a copy of the `memory` backend as an example.
+Clone this repository and build with `go build` to produce an rclone binary with the `mtproto` backend included:
 
-This repo depends on rclone (check the `go.mod` for the version) and has one copied file from the rclone repo the `rclone.go` file where you import your backend.
+```shell
+git clone https://github.com/Niruchie/rclone_backend_mtproto
+cd rclone_backend_mtproto
+go build
+```
 
-The same technique will work for additional commands too.
+## Configuration
 
-License
--------
+The `mtproto` backend uses MTProto API. You will need valid MTProto API credentials to authenticate.
 
-This is free software under the terms of the MIT license (check the [COPYING file](/COPYING) included in this package).
+Configure a new remote with:
+
+```shell
+rclone config
+```
+
+And follow the prompts to set up your remote.
+

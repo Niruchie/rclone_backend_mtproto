@@ -2,7 +2,7 @@
 _junk/
 /rclone
 /rclone.exe
-/rclone_out_of_tree_example
+/rclone_backend_mtproto
 build
 /docs/public/
 /docs/.hugo_build.lock
